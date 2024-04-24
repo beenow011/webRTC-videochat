@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import Peer from 'peerjs'
 import { v4 } from 'uuid'
 import { peerReducer } from './peerReducer'
-import { addPeerAction } from './peerAction'
-
+import { addPeerAction, removePeerAction } from './peerAction'
+import { simulateWebcamStream, videoPath } from "../fake_stream"
 const WS = 'http://localhost:8000'
 
 export const RoomContext = createContext<null | any>(null)
@@ -17,19 +17,33 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [me, setMe] = useState<Peer>()
     const [stream, setStream] = useState<MediaStream>()
     const [peer, dispatch] = useReducer(peerReducer, {})
-
+    const [part, setPart] = useState<number>(0)
+    const [participants, setParticipats] = useState<string[]>([])
     const enterRoom = ({ roomID }: { roomID: 'string' }) => {
-        console.log(roomID)
+        // console.log(roomID)
         navigate(`/room/${roomID}`)
     }
 
     const getUsers = ({ participants }: { participants: string[] }) => {
-        console.log("participants", { participants })
+        // console.log("participants", participants)
+        setParticipats(participants)
+    }
+
+    const removePeer = (peerId: string) => {
+        dispatch(removePeerAction(peerId))
     }
 
     useEffect(() => {
+        setPart(participants.length | 0)
+    }, [participants])
+
+    useEffect(() => {
         const uID = v4()
-        const peer = new Peer(uID)
+        const peer = new Peer(uID, {
+            host: 'localhost',
+            port: 9001,
+            path: '/myapp'
+        })
         setMe(peer)
 
 
@@ -39,42 +53,49 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 .then((stream) => {
                     setStream(stream);
                 });
+
         } catch (error) {
-            console.error(error);
+
+            console.error('Error:', error);
+
         }
 
 
         ws.on('room-created', enterRoom)
         ws.on('get-users', getUsers)
+        ws.on('user-disconnected', removePeer)
+        // console.log("check!!!!!!!", part)
+
     }, [])
 
     useEffect(() => {
-        if (!me || !stream) return
-        // console.log("me", stream)
+        if (!me) return
+        if (!stream) return
+        console.log("me", me, stream)
         ws.on('user-joined', (peerId) => {
-            // console.log(2)
+            console.log(2)
 
             const call = me.call(peerId, stream)
-            // console.log("call", call)
+            console.log("call", call)
             call.on('stream', (peerStream) => {
-                console.log(2)
+                console.log(3)
 
-                console.log("peerstream", peerStream)
+                // console.log("peerstream", peerStream)
                 dispatch(addPeerAction(peerId, peerStream))
             })
         })
         me.on('call', (call) => {
-            console.log(3)
+            console.log(4)
 
             call.answer(stream)
-            console.log("call-peer", call.peer)
+            // console.log("call-peer", call.peer)
             call.on('stream', (peerStream) => {
                 dispatch(addPeerAction(call.peer, peerStream))
             })
         })
     }, [me, stream])
 
-    console.log({ peer })
+    // console.log({ peer })
     return (
         <RoomContext.Provider value={{ ws, me, stream, peer }}>
             {children}
