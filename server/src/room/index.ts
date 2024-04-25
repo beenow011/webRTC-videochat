@@ -19,7 +19,10 @@ export const roomHandler = (socket:Socket)=>{
         if(rooms[roomID]){
          rooms[roomID].push(peerID)
         socket.join(roomID)
-        socket.to(roomID).emit('user-joined',{peerID})
+        socket.on('ready',()=>{
+            socket.broadcast.to(roomID).emit('user-joined',peerID);
+            })
+        // socket.to(roomID).emit('user-joined',{peerID})
         socket.emit('get-users',{
             roomID,
             participants: rooms[roomID]

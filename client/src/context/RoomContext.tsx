@@ -71,28 +71,40 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useEffect(() => {
         if (!me) return
         if (!stream) return
-        console.log("me", me, stream)
+        // console.log("me", me, stream)
         ws.on('user-joined', (peerId) => {
-            console.log(2)
-
+            // console.log(2)
             const call = me.call(peerId, stream)
             console.log("call", call)
-            call.on('stream', (peerStream) => {
+            call.on('stream', (remoteStream) => {
                 console.log(3)
+                dispatch(addPeerAction(peerId, remoteStream))
+            })
 
-                // console.log("peerstream", peerStream)
-                dispatch(addPeerAction(peerId, peerStream))
+            call.on('error', (err) => {
+                console.log(err)
             })
         })
+        // me.on('connection', (conn) => {
+        //     console.log("connection established: ", conn)
+        // });
         me.on('call', (call) => {
             console.log(4)
 
+
             call.answer(stream)
+
+
+
             // console.log("call-peer", call.peer)
-            call.on('stream', (peerStream) => {
-                dispatch(addPeerAction(call.peer, peerStream))
+            call.on('stream', (remoteStream) => {
+                dispatch(addPeerAction(call.peer, remoteStream))
             })
         })
+        me.on('error', (error) => {
+            console.log(error)
+        })
+        ws.emit("ready")
     }, [me, stream])
 
     // console.log({ peer })
