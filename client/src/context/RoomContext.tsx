@@ -17,25 +17,34 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [me, setMe] = useState<Peer>()
     const [stream, setStream] = useState<MediaStream>()
     const [peer, dispatch] = useReducer(peerReducer, {})
-    const [part, setPart] = useState<number>(0)
-    const [participants, setParticipats] = useState<string[]>([])
+    const [screenSharingId, setScreenSharingId] = useState<string>("")
+
     const enterRoom = ({ roomID }: { roomID: 'string' }) => {
         // console.log(roomID)
         navigate(`/room/${roomID}`)
     }
 
     const getUsers = ({ participants }: { participants: string[] }) => {
-        // console.log("participants", participants)
-        setParticipats(participants)
+        console.log("participants", participants)
+        // setParticipats(participants)
     }
 
     const removePeer = (peerId: string) => {
         dispatch(removePeerAction(peerId))
     }
 
-    useEffect(() => {
-        setPart(participants.length | 0)
-    }, [participants])
+    const switchStream = (stream: MediaStream) => {
+        setStream(stream)
+        setScreenSharingId(me?.id || '')
+    }
+    const shareScreen = () => {
+        if (screenSharingId) {
+            navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(switchStream)
+        } else {
+
+            navigator.mediaDevices.getDisplayMedia({}).then(switchStream)
+        }
+    }
 
     useEffect(() => {
         const uID = v4()
@@ -77,7 +86,6 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const call = me.call(peerId, stream)
             console.log("call", call)
             call.on('stream', (remoteStream) => {
-                console.log(3)
                 dispatch(addPeerAction(peerId, remoteStream))
             })
 
@@ -85,18 +93,9 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 console.log(err)
             })
         })
-        // me.on('connection', (conn) => {
-        //     console.log("connection established: ", conn)
-        // });
+
         me.on('call', (call) => {
-            console.log(4)
-
-
             call.answer(stream)
-
-
-
-            // console.log("call-peer", call.peer)
             call.on('stream', (remoteStream) => {
                 dispatch(addPeerAction(call.peer, remoteStream))
             })
@@ -109,7 +108,7 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // console.log({ peer })
     return (
-        <RoomContext.Provider value={{ ws, me, stream, peer }}>
+        <RoomContext.Provider value={{ ws, me, stream, peer, shareScreen }}>
             {children}
         </RoomContext.Provider>
     )
